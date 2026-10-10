@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  quality-gates:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run automated test suite
+        run: npm test
+
+      - name: Production build
+        env:
+          DATABASE_URL: "postgresql://synapse_user:synapse_password@localhost:5432/synapse_rag?schema=public"
+          AUTH_SECRET: "ci_pipeline_secret_key_at_least_32_characters_long"
+        run: npm run build

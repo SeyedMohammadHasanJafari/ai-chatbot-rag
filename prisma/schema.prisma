@@ -1,0 +1,83 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [pgvector(map: "vector")]
+}
+
+enum Role {
+  USER
+  ADMIN
+  DEMO
+}
+
+enum DocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum DocumentType {
+  PDF
+  DOCX
+  TXT
+  MD
+  URL
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String?
+  email          String          @unique
+  password       String?
+  image          String?
+  role           Role            @default(USER)
+  isDemo         Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  knowledgeBases KnowledgeBase[]
+}
+
+model KnowledgeBase {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  prompt      String     @default("You are a helpful, accurate AI assistant. Answer user questions ONLY based on the provided documents. Cite your sources with [Doc X]. If the answer is not in the context, clearly state that you do not know based on the provided documents.")
+  colorCode   String     @default("#06b6d4")
+  isPublic    Boolean    @default(true)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents   Document[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Document {
+  id            String          @id @default(cuid())
+  kbId          String
+  knowledgeBase KnowledgeBase   @relation(fields: [kbId], references: [id], onDelete: Cascade)
+  name          String
+  type          DocumentType
+  status        DocumentStatus  @default(PROCESSING)
+  errorMessage  String?
+  fileSize      Int?
+  chunks        DocumentChunk[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model DocumentChunk {
+  id         String                      @id @default(cuid())
+  documentId String
+  document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  content    String                      @db.Text
+  embedding  Unsupported("vector(1536)")?
+  tokenCount Int?
+  chunkIndex Int                         @default(0)
+  createdAt  DateTime                    @default(now())
+
+  @@index([documentId])
+}
